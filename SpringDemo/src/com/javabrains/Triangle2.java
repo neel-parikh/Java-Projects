@@ -9,7 +9,6 @@ public class Triangle2 implements InitializingBean,DisposableBean
 	private Point pointB;
 	private Point pointC;
 
-
 	public Point getPointA() {
 		return pointA;
 	}
