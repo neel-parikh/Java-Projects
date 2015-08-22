@@ -1,0 +1,531 @@
+
+<!Doctype html public "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<!--  [*]  set html page title   -->
+<title>Income Analysis per state of the United States</title>
+
+<!--  css style sheet -->
+<style type="text/css">
+img {
+	border: 0;
+}
+
+.menuimg {
+	height: 32px;
+	width: 32px;
+	position: relative;
+	top: 0px;
+	border: 0px;
+}
+
+table.pretty {
+	border-collapse: separate;
+	border-spacing: 0.2em;
+}
+
+table.pretty th, table.pretty td {
+	background: whitesmoke;
+	border: 1px silver solid;
+	padding: 0.2em;
+}
+</style>
+
+
+
+<!--   import Google visualization  API -->
+<script type="text/javascript" src="http://www.google.com/jsapi"></script>
+
+<!--   customize function -->
+<script type="text/javascript">
+	google.load("visualization", "1", {
+		packages : [ "geomap", "columnchart" ]
+	});
+
+	//Global Variables
+	var datatable = [];
+	var data1 = [];
+
+	google.setOnLoadCallback(getData);
+	var data = null;
+	function getData() {
+		var sparql = "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> "
+				+ "PREFIX ds354:  <http://data-gov.tw.rpi.edu/vocab/p/353/> "
+				+ "PREFIX ds1356:  <http://data-gov.tw.rpi.edu/vocab/p/1356/> "
+				+ "SELECT (?st AS ?STATE_CODE) "
+				+ "((xsd:integer(?population)) AS ?TOTAL_POPULATION) "
+				+ "((xsd:integer(ROUND(?total_tax_payer))) AS ?TOTAL_TAX_PAYERS) "
+				+ "((xsd:integer(ROUND(?avg_gross_income))) AS ?AVERAGE_GROSS_INCOME) "
+				+ "((xsd:integer(ROUND(?avg_salary))) AS ?AVERAGE_SALARY) "
+				+ "((xsd:integer(ROUND(?avg_dividend))) AS ?AVERAGE_DIVIDEND) "
+				+ "((xsd:integer(ROUND(?avg_interest))) AS ?AVERAGE_INTEREST) "
+				+ "WHERE { " + "?s1 ds354:popu_st ?population ; "
+				+ "ds354:phys_st ?st . "
+				+ "{ SELECT ?st (SUM(xsd:integer(?tot)) as ?total_tax_payer) "
+				+ "(AVG(xsd:integer(?agi)) AS ?avg_gross_income) "
+				+ "(AVG(xsd:integer(?wages_salaries)) AS ?avg_salary) "
+				+ "(AVG(xsd:integer(?interest)) AS ?avg_interest) "
+				+ "(AVG(xsd:integer(?dividends)) AS ?avg_dividend) "
+				+ "WHERE {  ?s ds1356:return_num ?tot ; "
+				+ "ds1356:year \"2007\" ; " + "ds1356:agi ?agi ; "
+				+ "ds1356:interest ?interest ; "
+				+ "ds1356:wages_salaries ?wages_salaries ; "
+				+ "ds1356:dividends ?dividends ; "
+				+ "ds1356:state_abbrv ?st ; "
+				+ "ds1356:year \"2007\" . } group by ?st } " + "} ORDER BY ?st";
+
+		var sparql1 = "SELECT ?subj ?pred ?obj WHERE { ?subj ?pred ?obj .}";
+
+		var queryurl2 = "http://localhost:3030/myDataset/query?query="
+				+ encodeURIComponent(sparql) + "&output=xml";
+
+		// code for IE7+, Firefox, Chrome, Opera, Safari
+		if (window.XMLHttpRequest)
+			xmlhttp = new XMLHttpRequest();
+		else
+			// code for IE6, IE5
+			xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+
+		// probably need these headers
+		xmlhttp.open('GET', queryurl2, false);
+
+		// Set up callback to get the response asynchronously.
+		xmlhttp.onreadystatechange = function() {
+
+			if (xmlhttp.readyState == 4) {
+				if (xmlhttp.status == 200) {
+					// results are in a string in xmlhttp.responseText but we can't return it from this sub-function
+					responseStr = xmlhttp.responseText;
+					drawMap(responseStr);
+
+				} else {
+					// Some kind of error occurred.
+					alert("Sparql query error: " + xmlhttp.status + " "
+							+ xmlhttp.responseText);
+				}
+			}
+		}
+		xmlhttp.send();
+	}
+
+	function drawMap(response) {
+
+		// Make sure our data isn't empty.
+		if (null == response)
+			return;
+
+		var patternStr = ">([A-Z0-9]+)<";
+
+		var patt = new RegExp(patternStr, "g");
+
+		var res = "";
+		var statecode = [];
+		var total_pop = [];
+		var total_tax_payer = [];
+		var avg_agi = [];
+		var avg_salary = [];
+		var avg_dividend = [];
+		var avg_interest = [];
+
+		while ((res = patt.exec(response)) !== null) {
+
+			statecode.push(res[1]);
+
+			res = patt.exec(response);
+			total_pop.push(res[1]);
+
+			res = patt.exec(response);
+			total_tax_payer.push(res[1]);
+
+			res = patt.exec(response);
+			avg_agi.push(res[1]);
+
+			res = patt.exec(response);
+			avg_salary.push(res[1]);
+
+			res = patt.exec(response);
+			avg_dividend.push(res[1]);
+
+			res = patt.exec(response);
+			avg_interest.push(res[1]);
+
+		}//end while */
+
+		datatable.push([ "STATE_CODE", "TOTAL_POPULATION", "TOTAL_TAX_PAYERS",
+				"AVERAGE_GROSS_INCOME", "AVERAGE_SALARY", "AVERAGE_DIVIDEND",
+				"AVERAGE_INTEREST" ]);
+		data1.push([ "STATE", "POPULATION", "TAX PAYERS" ]);
+
+		for (var i = 0; i < statecode.length; i++) {
+			var row = [];
+			var row1 = [];
+			row.push(statecode[i]);
+			row.push(total_pop[i]);
+			row.push(total_tax_payer[i]);
+			row.push(avg_agi[i]);
+			row.push(avg_salary[i]);
+			row.push(avg_dividend[i]);
+			row.push(avg_interest[i]);
+
+			datatable.push(row);
+
+			row1.push(stateLookup(statecode[i]));
+			row1.push(total_pop[i]);
+			row1.push(total_tax_payer[i]);
+			data1.push(row1);
+		}
+
+		google.visualization.drawChart({
+			"containerId" : "chart_canvas",
+			"dataTable" : data1,
+			"refreshInterval" : 5,
+			"chartType" : "Table",
+			"options" : {
+				"alternatingRowStyle" : true,
+			}
+		});
+
+		var newdata = new google.visualization.DataTable();
+		newdata.addColumn('string', 'State');
+		newdata.addColumn('number', 'Percentage Tax Payers');
+
+		for (var i = 1; i < datatable.length; i++) {
+
+			// Ensure that none of our values is 0
+			// Otherwise, we will get a divide by zero
+			// error and our key will not work.
+			var scode = datatable[i][0];
+			var tot_pop = datatable[i][1];
+			var tax_payer = datatable[i][2];
+			var st_lookup = stateLookup(scode);
+
+			// Here we round the calculated ratio to three decimal places.
+			newdata.addRow([ st_lookup,
+					Math.round(((tax_payer / tot_pop)) * 1000) / 10 ]);
+		}
+
+		// Map options
+		var options = {};
+		options['region'] = 'US';
+		options['dataMode'] = 'regions';
+		options['width'] = 730;
+		options['height'] = 500;
+		options['colors'] = [ 0xEEEEFF, 0x3030FF ];
+
+		// Create container and draw visualization
+		var container = document.getElementById('map_canvas');
+		var geomap = new google.visualization.GeoMap(container);
+		geomap.draw(newdata, options);
+	};
+
+	function stateLookup(code) {
+		var state_code_arr = new Array();
+		state_code_arr['AL'] = 'Alabama';
+		state_code_arr['AK'] = 'Alaska';
+		state_code_arr['AZ'] = 'Arizona';
+		state_code_arr['AR'] = 'Arkansas';
+		state_code_arr['CA'] = 'California';
+		state_code_arr['CO'] = 'Colorado';
+		state_code_arr['CT'] = 'Connecticut';
+		state_code_arr['DE'] = 'Delaware';
+		state_code_arr['DC'] = 'District of Columbia';
+		state_code_arr['FL'] = 'Florida';
+		state_code_arr['GA'] = 'Georgia';
+		state_code_arr['HI'] = 'Hawaii';
+		state_code_arr['ID'] = 'Idaho';
+		state_code_arr['IL'] = 'Illinois';
+		state_code_arr['IN'] = 'Indiana';
+		state_code_arr['IA'] = 'Iowa';
+		state_code_arr['KS'] = 'Kansas';
+		state_code_arr['KY'] = 'Kentucky';
+		state_code_arr['LA'] = 'Louisiana';
+		state_code_arr['ME'] = 'Maine';
+		state_code_arr['MD'] = 'Maryland';
+		state_code_arr['MA'] = 'Massachusetts';
+		state_code_arr['MI'] = 'Michigan';
+		state_code_arr['MN'] = 'Minnesota';
+		state_code_arr['MS'] = 'Mississippi';
+		state_code_arr['MO'] = 'Missouri';
+		state_code_arr['MT'] = 'Montana';
+		state_code_arr['NE'] = 'Nebraska';
+		state_code_arr['NV'] = 'Nevada';
+		state_code_arr['NH'] = 'New Hampshire';
+		state_code_arr['NJ'] = 'New Jersey';
+		state_code_arr['NM'] = 'New Mexico';
+		state_code_arr['NY'] = 'New York';
+		state_code_arr['NC'] = 'North Carolina';
+		state_code_arr['ND'] = 'North Dakota';
+		state_code_arr['OH'] = 'Ohio';
+		state_code_arr['OK'] = 'Oklahoma';
+		state_code_arr['OR'] = 'Oregon';
+		state_code_arr['PA'] = 'Pennsylvania';
+		state_code_arr['RI'] = 'Rhode Island';
+		state_code_arr['SC'] = 'South Carolina';
+		state_code_arr['SD'] = 'South Dakota';
+		state_code_arr['TN'] = 'Tennessee';
+		state_code_arr['TX'] = 'Texas';
+		state_code_arr['UT'] = 'Utah';
+		state_code_arr['VT'] = 'Vermont';
+		state_code_arr['VA'] = 'Virginia';
+		state_code_arr['WA'] = 'Washington';
+		state_code_arr['WV'] = 'West Virginia';
+		state_code_arr['WI'] = 'Wisconsin';
+		state_code_arr['WY'] = 'Wyoming';
+
+		state_code_arr['Alabama'] = 'AL';
+		state_code_arr['Alaska'] = 'AK';
+		state_code_arr['Arizona'] = 'AZ';
+		state_code_arr['Arkansas'] = 'AR';
+		state_code_arr['California'] = 'CA';
+		state_code_arr['Colorado'] = 'CO';
+		state_code_arr['Connecticut'] = 'CT';
+		state_code_arr['Delaware'] = 'DE';
+		state_code_arr['District of Columbia'] = 'DC';
+		state_code_arr['Florida'] = 'FL';
+		state_code_arr['Georgia'] = 'GA';
+		state_code_arr['Hawaii'] = 'HI';
+		state_code_arr['Idaho'] = 'ID';
+		state_code_arr['Illinois'] = 'IL';
+		state_code_arr['Indiana'] = 'IN';
+		state_code_arr['Iowa'] = 'IA';
+		state_code_arr['Kansas'] = 'KS';
+		state_code_arr['Kentucky'] = 'KY';
+		state_code_arr['Louisiana'] = 'LA';
+		state_code_arr['Maine'] = 'ME';
+		state_code_arr['Maryland'] = 'MD';
+		state_code_arr['Massachusetts'] = 'MA';
+		state_code_arr['Michigan'] = 'MI';
+		state_code_arr['Minnesota'] = 'MN';
+		state_code_arr['Mississippi'] = 'MS';
+		state_code_arr['Missouri'] = 'MO';
+		state_code_arr['Montana'] = 'MT';
+		state_code_arr['Nebraska'] = 'NE';
+		state_code_arr['Nevada'] = 'NV';
+		state_code_arr['New Hampshire'] = 'NH';
+		state_code_arr['New Jersey'] = 'NJ';
+		state_code_arr['New Mexico'] = 'NM';
+		state_code_arr['New York'] = 'NY';
+		state_code_arr['North Carolina'] = 'NC';
+		state_code_arr['North Dakota'] = 'ND';
+		state_code_arr['Ohio'] = 'OH';
+		state_code_arr['Oklahoma'] = 'OK';
+		state_code_arr['Oregon'] = 'OR';
+		state_code_arr['Pennsylvania'] = 'PA';
+		state_code_arr['Rhode Island'] = 'RI';
+		state_code_arr['South Carolina'] = 'SC';
+		state_code_arr['South Dakota'] = 'SD';
+		state_code_arr['Tennessee'] = 'TN';
+		state_code_arr['Texas'] = 'TX';
+		state_code_arr['Utah'] = 'UT';
+		state_code_arr['Vermont'] = 'VT';
+		state_code_arr['Virginia'] = 'VA';
+		state_code_arr['Washington'] = 'WA';
+		state_code_arr['West Virginia'] = 'WV';
+		state_code_arr['Wisconsin'] = 'WI';
+		state_code_arr['Wyoming'] = 'WY';
+		return state_code_arr[code];
+	};
+
+	// Add listener to visualization to draw chart                                  
+	function drawBarChart(value) {
+		if (value == -1)
+			return;
+
+		var rev_lookup = stateLookup(value);
+		var row = 0;
+		for (var j = 0; j < 51; j++) {
+			if (datatable[j][0] == value) {
+				row = j;
+				break;
+			}
+		}
+
+		var tax_pay = datatable[row][2];
+		var agi = datatable[row][3];
+		var sal = datatable[row][4];
+		var divid = datatable[row][5];
+		var intr = datatable[row][6];
+
+		// Set chart options                                            
+		var options = {};
+		options['width'] = 260;
+		options['height'] = 500;
+		options['min'] = 0;
+		options['legend'] = 'bottom';
+		options['title'] = rev_lookup;
+		options['titleY'] = "Average Earning";
+
+		// Add data to chart                                    
+		var chartdata = new google.visualization.DataTable();
+		chartdata.addColumn('number', 'Gross Income');
+		chartdata.addColumn('number', 'Salary');
+		chartdata.addColumn('number', 'Dividend');
+		chartdata.addColumn('number', 'Interest');
+
+		chartdata.addRows(1);
+		chartdata.setCell(0, 0, agi);
+		chartdata.setCell(0, 1, sal);
+		chartdata.setCell(0, 2, divid);
+		chartdata.setCell(0, 3, intr);
+
+		// Set chart canvas                                            
+		var container = document.getElementById('c_canvas');
+
+		// Draw chart to canvas                                        
+		var chart = new google.visualization.ColumnChart(container);
+		chart.draw(chartdata, options);
+
+	}
+</script>
+</head>
+<body>
+	<center>
+
+		<!-- Demo Header -->
+		<table width="990px">
+			<tr>
+				<!-- title -->
+				<td align="center" valign="baseline"><h3>Categorized Per
+						State Income and Tax Payers in United States in 2007</h3></td>
+
+				<td width="120" align="right">
+					<!-- link to data-gov home page --> <a class="info"
+					href="http://data-gov.tw.rpi.edu/"> <img
+						src="http://data-gov.tw.rpi.edu/images/logo-data-gov.png"
+						alt="Go to data-gov" class="menuimg"></a>
+
+				</td>
+			</tr>
+		</table>
+
+
+		<!-- Demo Content -->
+		<table width="990px">
+			<tbody>
+				<tr>
+					<td><div style="position: relative;" id="map_canvas"></div></td>
+					<td width="500px" style="background: #EEF"><div
+							style="position: relative; overflow: scroll; max-height: 500px"
+							id="chart_canvas"></div></td>
+					<td width="500px" style="background: #EEF"><select
+						id="state_select" onchange="drawBarChart(this.value)">
+							<option value="-1">--- Select State ---</option>
+							<option value="AL">Alabama</option>
+							<option value="AK">Alaska</option>
+							<option value="AZ">Arizona</option>
+							<option value="AR">Arkansas</option>
+							<option value="CA">California</option>
+							<option value="CO">Colorado</option>
+							<option value="CT">Connecticut</option>
+							<option value="DE">Delaware</option>
+							<option value="DC">District Of Columbia</option>
+							<option value="FL">Florida</option>
+							<option value="GA">Georgia</option>
+							<option value="HI">Hawaii</option>
+							<option value="ID">Idaho</option>
+							<option value="IL">Illinois</option>
+							<option value="IN">Indiana</option>
+							<option value="IA">Iowa</option>
+							<option value="KS">Kansas</option>
+							<option value="KY">Kentucky</option>
+							<option value="LA">Louisiana</option>
+							<option value="ME">Maine</option>
+							<option value="MD">Maryland</option>
+							<option value="MA">Massachusetts</option>
+							<option value="MI">Michigan</option>
+							<option value="MN">Minnesota</option>
+							<option value="MS">Mississippi</option>
+							<option value="MO">Missouri</option>
+							<option value="MT">Montana</option>
+							<option value="NE">Nebraska</option>
+							<option value="NV">Nevada</option>
+							<option value="NH">New Hampshire</option>
+							<option value="NJ">New Jersey</option>
+							<option value="NM">New Mexico</option>
+							<option value="NY">New York</option>
+							<option value="NC">North Carolina</option>
+							<option value="ND">North Dakota</option>
+							<option value="OH">Ohio</option>
+							<option value="OK">Oklahoma</option>
+							<option value="OR">Oregon</option>
+							<option value="PA">Pennsylvania</option>
+							<option value="RI">Rhode Island</option>
+							<option value="SC">South Carolina</option>
+							<option value="SD">South Dakota</option>
+							<option value="TN">Tennessee</option>
+							<option value="TX">Texas</option>
+							<option value="UT">Utah</option>
+							<option value="VT">Vermont</option>
+							<option value="VA">Virginia</option>
+							<option value="WA">Washington</option>
+							<option value="WV">West Virginia</option>
+							<option value="WI">Wisconsin</option>
+							<option value="WY">Wyoming</option>
+					</select>
+						<div style="position: relative;" id="c_canvas"></div></td>
+				</tr>
+
+			</tbody>
+		</table>
+
+		<!-- Demo Description -->
+		<table width="990px" class="pretty">
+			<tr>
+				<td>Description</td>
+				<td>This demo shows the No. of Tax payers in each states in US
+					as well as Categorized Per State Average Income of the people. The
+					Average Income is categorized as Gross Income, Interest earned,
+					Taxable Income and Share Dividends Income. <br /> Lighter colored
+					states have a lower percent of Tax Payers, whereas states in darker
+					blue have a higher percent of Tax Payers. <br /> When you click on
+					a state, a chart appears to the right that breaks down the
+					individual figures showing:
+					<ul>
+						<li>Average Gross Income</li>
+						<li>Average Interest Earned</li>
+						<li>Average Taxable Income</li>
+						<li>Average Income from Dividends</li>
+					</ul> The result is an interesting comparison of per state tax payers
+					and their average income.
+				</td>
+			</tr>
+
+			<tr>
+				<td>Project Members</td>
+				<td>
+					<ul>
+						<li><a href="#">Neel Parikh</a></li>
+						<li><a href="#">Fenil Shah</a></li>
+					</ul>
+				</td>
+			</tr>
+
+
+			<tr>
+				<td>Project Group</td>
+				<td>16</td>
+			</tr>
+
+			<tr>
+				<td>Datasets used</td>
+				<td>
+					<ul>
+						<li><a href="http://data-gov.tw.rpi.edu/wiki/Dataset_354">Dataset
+								354</a> - Getting the per State population in 2007</li>
+						<li><a href="http://data-gov.tw.rpi.edu/wiki/Dataset_1356">Dataset
+								1356</a> - Getting the per State Tax Payers and Categorized Income
+							of people in US in 2007</li>
+					</ul>
+				</td>
+			</tr>
+
+			<tr>
+				<td>Service for Querying</td>
+				<td>Fuseki Server</td>
+			</tr>
+		</table>
+	</center>
+</body>
+</html>
